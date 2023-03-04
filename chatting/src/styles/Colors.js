@@ -1,7 +1,9 @@
 const Colors ={
     defaultGreenColor : '#5BED53',
-    defaultGreyColor: '#313030',
-    defaultDarkColor:'#161616',
+    text: 'black',
+    back:`#ffffff`,
+    purple:`#9370db`
+
 
 }
 export default Colors

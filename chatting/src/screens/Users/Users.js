@@ -1,23 +1,29 @@
 import {View,Text,FlatList,Image} from "react-native";
 import React from 'react'
 import UserCard from "../../components/UserCard/UserCard";
-
-import { useSelector } from "react-redux"
+import {useSelector} from 'react-redux'
 
 const Users = ({navigation})=>{
 
-    const usersOnline = useSelector(state => state.usersOnline)
-    console.log( "usersOnline" ,usersOnline)
+    const users = useSelector(s=>s.users)
+    const selfUser = useSelector(s=>s.selfUser)
 
-    const renderUser =({item})=> <UserCard item = {item} onPress= {()=>{navigation.navigate("Chat",{name:item.username, userId: item.userId})}}/>
+    // TODO write the onPress Method
+    function renderUser ({item}){
+        return(
+           <UserCard item = {item} onPress= {()=>{navigation.navigate('Chat',{userName:item.username,userId :item.id,avatar:item.avatar})}}/>
+        )
 
+    }
+    
     return(
         <View style = {{flex:1}}>
             <FlatList
-                data= {usersOnline}
-                renderItem={renderUser} 
-                keyExtractor={item => item.userId}
-                />
+                data = {users}
+                renderItem = {renderUser}
+                keyExtractor= {(item)=> item.id}/>
+
+            <Text style={{margin :20,color:'black',fontWeight:'bold'}}>{selfUser.username}</Text>
 
         </View>
     )

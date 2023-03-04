@@ -1,39 +1,71 @@
 import {View,FlatList} from "react-native";
-import React, { useEffect } from 'react'
-import {useSelector} from 'react-redux'
+import React, { useEffect,useState } from 'react'
 import UserCard from "../../components/UserCard/UserCard";
+import {useSelector} from 'react-redux'
+import { useFocusEffect } from "@react-navigation/native";
+import axios from 'axios'
 
 
 const Messages = ({navigation})=>{
 
-    const conversationsAll = useSelector(state=>state.conversations)
+    const [usersFilter, setUsersFilter]= useState([])
+    // get users 
+    const users= useSelector(u=>u.users)
+    const selfUser = useSelector(s=>s.selfUser)
 
-       
-        const values = Object.values(conversationsAll)
-        const createdConversations = values.filter(c => c.messages.length !== 0)
-        console.log("conv",createdConversations)
-        const users = createdConversations.map(myFunction)
-        console.log("users",users)
 
-   
 
-    function myFunction(conversations) {
-        return conversations.user;
-            }
+    // fetch the rooms when page is changed
+    useFocusEffect(
+        React.useCallback(() => {
+            fetchPrivateConv()
+          
+        }, [])
+      );
     
+    const  fetchPrivateConv = async ()=>{
+        try{
+            // get private conv from server
+            const {data} =  await axios.get(`http://192.168.1.106:3000/conversations/private?userId=${selfUser.id}`)
 
-    const renderUser =({item})=> <UserCard item = {item} onPress= {()=>{navigation.navigate("Chat",{name:item.username, userId: item.userId})}}/>
+            const privateParticipants= data.participant
 
+            setUsersFilter([])
+            // filter users  by messaged user
+            for(i= 0; i<privateParticipants.length;i++){
+                let temp = null
+                temp = users.find(user => user.id === privateParticipants[i])
+                setUsersFilter( prev => [...prev, temp])
+                
+            } 
+  
+
+        }catch(err){
+          
+            console.log(err.message)
+        }
+        
+    };
+    
+ 
+    
+    function renderUser ({item}){
         return(
-            <View style = {{flex:1}}>
-                <FlatList
-                    data= {users}
-                    renderItem={renderUser} 
-                    keyExtractor={item => item.userId}
-                    />
-
-            </View>
+           <UserCard item = {item} onPress= {()=>{navigation.navigate('Chat',{userName:item.username,userId :item.id,avatar:item.avatar})}}/>
         )
+          
+
+    }
+
+    return(
+        <View style = {{flex:1}}>
+            <FlatList
+                data = {usersFilter}
+                renderItem = {renderUser}
+                /> 
+        </View>
+    )
+    
 
 }
 

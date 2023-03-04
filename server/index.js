@@ -1,98 +1,128 @@
-const express = require("express");
-const { createServer } = require("http");
-const { Server } = require("socket.io");
-const app = express();
-const httpServer = createServer(app);
-const io = new Server(httpServer, { /* options */ });
-
-const uuid = require('uuid');
- 
-const port = process.env.PORT || 3000;
-
-const messagehandler= require("./handlers/message.handler")
-
-app.get('/', (req, res) => {
-    res.sendFile(__dirname + '/index.html');
-  });
+const bodyParser = require("body-parser");
+const app = require('express')();
+const http = require('http').createServer(app);
+const io = require('socket.io')(http);
 
 
-const users = {};
+const users = require('./src/utils/dummyUser');
 
-function createUsersOnline(){
-  const values = Object.values(users)
-  const onlyWithUsernames = values.filter(u => u.username !== undefined)
-  return onlyWithUsernames
+const usersRouter = require('./src/routes/users');
+const conversationRouter = require('./src/routes/conversations');
+
+app.use(bodyParser.json({}));
+
+
+
+const PORT = 3000 || 3001;
+
+app.use('/users', usersRouter);
+app.use('/conversations', conversationRouter);
+
+const { privateConversations, communityConversations } = require('./src/utils/dummyConversation');
+
+let isPublic; // hold whether the messaging is private or public 
+
+// add message to server 
+function post(message,roomId){
+
+    const room = privateConversations[roomId] || communityConversations[roomId]; // Get community rooms by room id
+
+    // if messaging is public, add sender user property to message
+    if(isPublic){
+        // find sender user in users
+        const senderUser = users.find(user=> user.id === message.user._id)
+
+        message.user.avatar = senderUser.avatar
+        message.user.name = senderUser.username
+    }
+
+    room.messages.unshift(message);
+    console.log("privateConversations",privateConversations)
+    console.log("CommunityConversations",communityConversations[roomId])
+    
+}
+
+function checkRoomPrivate (roomId,selfUserId,receiveId){
+    const room = privateConversations[roomId]  // Get community rooms by room id
+    // if dont have room create room 
+    if (!room) {
+        let  romm_property =  { 
+             participants: [selfUserId, receiveId],
+             messages: [],
+             roomId : roomId
+         }
+         privateConversations[roomId] = romm_property;
+         
+     }
 
 }
 
-function createUserAvatar(){
-  const rand1 = Math.round(Math.random()*200 +100)
-  const rand2 = Math.round(Math.random()*200 +100)
-  return `https://placeimg.com/${rand1}/${rand2}/any`
+function checkRoomPublic(roomId,roomName,selfUserId){
+
+    const room = communityConversations[roomId]  // Get community rooms by room id
+
+    // if dont have room create room 
+    if (!room) {
+        let  room_property =  { 
+             participants: [selfUserId],
+             messages: [],
+             roomId : roomId,
+             roomName: roomName,
+             avatar:'https://ui-avatars.com/api/?name=' + roomName
+             
+         }
+         communityConversations[roomId] = room_property
+         
+     }
+     else{
+        // if room exists, Check weather or not user is one of the participant of the room  
+        const isUserParticipant = room.participants.find(id => id === selfUserId); 
+
+        // if not, add the user id to participants
+        if(!isUserParticipant){
+            room.participants.push(selfUserId)
+        }
+     }
+    
 
 }
 
 io.on('connection', socket  => {
 
-    users[socket.id]= {userId: uuid.v1()};
-    console.log('a user connected', users[socket.id].userId);
-   
+    console.log('A user connected', socket.id)
+    
+    //listen  messages
+    socket.on("send_message",(message,roomId) =>{
+        socket.broadcast.to(roomId).emit("receive_message",message)
+        post(message,roomId)
+           
+    })
+ 
+
+    socket.on("join_room_private",(room,selfUserId,receiveId,isPublic,cb)=>{
+        isPublic = isPublic
+        checkRoomPrivate(room,selfUserId,receiveId)
+        socket.join(room)
+        cb("joined",room)
+    })
+
+        
+    socket.on("join_room_public",(roomId, roomName, selfUserId,cb)=>{
+        checkRoomPublic(roomId,roomName, selfUserId)
+        socket.join(roomId)
+        cb("joined",roomId)
+    })
+
+
 
     socket.on('disconnect',()=>{
-      console.log("user disconnect",users[socket.id].userId)
-      delete users[socket.id];
-      io.emit("action",
-           {type:"users_online", data:createUsersOnline()})
-          
-        });
-
-    socket.on("action", action=>{
-      switch(action.type){
-        case "server/hello":
-          console.log("Got hello event ",action.data)
-          socket.emit("action",{type:"message",data:"Good Day"})
-          break;
-
-        case "server/join":
-          console.log("Got join event",action.data)
-          users[socket.id].username= action.data;
-          users[socket.id].avatar = createUserAvatar()
-          io.emit("action",{type:"users_online", data:createUsersOnline() })
-          socket.emit("action",{type:"self_user",data:users[socket.id]})
-          break;
-
-        case "server/private_message":
-          const conversationId = action.data.conversationId
-          const from = users[socket.id].userId;
-          const userValues = Object.values(users)
-          const socketIds = Object.keys(users)
-
-          for(let i = 0 ; i <userValues.length; i++){
-            
-            if(userValues[i].userId === conversationId){
-              const socketId = socketIds[i]
-              socket.to(socketId).emit("action",
-              {
-                type:"private_message",
-                data:{
-                  ...action.data,
-                  conversationId:from 
-                }
-              })
-              break;
-            }
-          }
-
-        break
-
-      }
-
-
+        console.log("user disconnect",socket.id)
     })
- });
+            
+        
 
-    
 
-  httpServer.listen(port, () => {
-    console.log( `Server running at http://localhost:${port}/`);
-  });
+})
+
+
+http.listen(PORT, () => console.log(`Socket app has been initiated on http://localhost:${PORT}/`));

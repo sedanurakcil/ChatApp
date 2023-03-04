@@ -1,4 +1,4 @@
-import {View} from "react-native";
+import {View,} from "react-native";
 import React,{useRef,useEffect,useState} from 'react'
 import { GiftedChat,InputToolbar ,Send} from 'react-native-gifted-chat'
 import {socket} from '../../utils/socket'
@@ -8,25 +8,36 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import PrivateBubble from "../../components/PrivateBubble/PrivateBubble";
 
 
-const Chat = ({route})=>{
+
+const PublicChat = ({route})=>{
     
     const[messages,setMessages]= useState([])
-    const {userId} = route.params;
+    const {roomName} = route.params;
     const selfUser = useSelector(state=>state.selfUser)
-    const roomId= useRef(null)
     const users = useSelector(state=>state.users)
+    const roomId = useRef(null)
 
-    
+
     useEffect(()=>{
-         // take the past messages
-        getMessages(userId)
+        getMessages()
 
-         // listen room 
+        // listen room
         socket.on("receive_message", message =>{
+
+             // find the sender user in users
+            const senderUser = users.find(user=> user.id === message.user._id)
+
+            // add the sender user property to message
+            message.user.avatar = senderUser.avatar
+            message.user.name= senderUser.username
+            console.log(message)
+           
             setMessages(previousMessages => GiftedChat.append(previousMessages, message))
         })
+
     },[])
-   
+
+
     // create unique room id
     function createRoomId(){
         if(!roomId.current){
@@ -34,47 +45,48 @@ const Chat = ({route})=>{
         }
     }
 
-    async function getMessages(userId){
+    async function getMessages(){
+
         try{
-            // fetch all private rooms
-            const {data} =  await axios.get(`http://192.168.1.106:3000/conversations/private?userId=${selfUser.id}`)
+            // get community rooms 
+            const {data} =  await axios.get(`http://192.168.1.106:3000/conversations/communityAll`)
+             
+            // find the selected room  by roomName
+            const room = data.find(room => room.roomName === roomName)
 
-            const privateRooms = data.rooms
+           
+           // If there is a room, check if this user is a member of the room
+            if(room){
 
+                // take roomId
+                roomId.current = room.roomId
 
-            if(privateRooms){
-                    // filter room according to receive user id
-                    const room = privateRooms.filter(room => room.participants.find(userIds => userIds == userId))
+                const isUserParticipant = room.participants.find(userIds => userIds === selfUser.id);
 
-                    if(room.length > 0){
-                        //set roomId and messages
-                        roomId.current= room[0].roomId
-                        setMessages(room[0].messages)
-    
-                    }
-                    else{
-                        createRoomId()
+                // if yes, get the past messages
+                if(isUserParticipant){
+                    setMessages(room.messages)
+                }    
 
-                    }
-            
             }
             else{
+                //If there is no room, create a new room id
                 createRoomId()
             }
-        }
-        catch(err){
-            console.log(err)
-        }
-
-        // join room after check room id
-        socket.emit("join_room_private", roomId.current,selfUser.id,userId,false, (back)=>{
+        }catch(err){
+            console.log(err.message)
+        } 
+        
+        socket.emit("join_room_public", roomId.current,roomName, selfUser.id,(back)=>{
             console.log(back)
         })
 
     }
+   
 
     // send message to server 
     function onSend(messages){
+
         const message= {
             _id:(Math.random() + 1).toString(36).substring(7),
             text: messages[0].text,
@@ -85,44 +97,44 @@ const Chat = ({route})=>{
         
         socket.emit("send_message", message,roomId.current)
         setMessages(previousMessages => GiftedChat.append(previousMessages, message))
+        
     }
 
-    // change message bubble
-    const renderBubble = (props) => <PrivateBubble {...props} />;
     
-    return (
 
-        <View style={{ flex: 1, backgroundColor: '#F1EDE4' }}>
+
+    return (
+        <View style = {{flex:1}}>
             <GiftedChat
                 showAvatarForEveryMessage={true}
+                renderUsernameOnMessage
                 messages={messages}
                 onSend={(messages)=>onSend(messages)}
                 user={{
                         _id: selfUser.id,
                         }}
-                renderAvatar={() => null}
 
-                renderBubble={renderBubble}
+                
+                renderBubble={(props) => {
+                    return <PrivateBubble {...props} />;
+                }}
+
 
                 renderInputToolbar={(props) => (
                     <InputToolbar {...props} containerStyle={{ backgroundColor: '#FFFFFF', paddingTop:3}} />
                   )}
 
-                  renderSend={(props) => (
+                renderSend={(props) => (
                     <Send {...props} style={{backgroundColor:'#FFFFFF'}}>
                         <Icon name="send" style={{ fontSize:30 , color: '#9370db',marginBottom:7, }}/>
                     </Send>
 
                     )}
-                        
-            />
+            /> 
         </View>
-         
-
            
     )    
     
 }
 
-
-export default Chat
+export default PublicChat

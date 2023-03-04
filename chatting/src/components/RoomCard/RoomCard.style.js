@@ -4,29 +4,26 @@ import Colors from '../../styles/Colors';
 export const Container = styled.TouchableOpacity`
   flex-direction: row;
   align-items: center;
-  margin:8px;
+  margin: 10px;
   padding: 5px;
   border-radius: 10px;
-  background-color: ${Colors.back};
-  elevation:5;
+  background-color: ${Colors.purple};
+  elevation: 5;
 `;
 
 export const AvatarContainer = styled.Image`
-
   background-color: lightgray;
-  border-radius: 25px;
-  height: 50px;
-  width: 50px;
+  border-radius: 20px;
+  height: 40px;
+  width: 40px;
   align-items: center;
   justify-content: center;
-  margin-right: 20px;
+  margin-horizontal: 5px;
 `;
 
 export const Initials = styled.Text`
-  color: ${Colors.text};
+  color: white;
   font-weight: bold;
-  font-size:17px;
-  margin-bottom:10px;
-  
+  font-size:18px;
   
 `;
