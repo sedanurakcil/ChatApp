@@ -10,29 +10,16 @@ const Login = ({navigation}) => {
     const dispatch = useDispatch()
     const randomUser = useRef(null)
     const [loading, setLoading] = useState(true)
-    const [loading1, setLoading1] = useState(true)
-    const [isReady, setIsReady] = useState(false)
     const selfUser = useSelector(state=>state.selfUser)
  
     
     useEffect(()=>{
-        if(!randomUser.current){
-            fetchUsersData() 
-             
-        }
-         
-    },[]) 
 
-    // trigger when user selected and navigation 
-    useFocusEffect(
-        React.useCallback(() => {
-            if(selfUser){
-                fetchPrivateConv(randomUser) 
-                fetchCommunityConv(randomUser)       
-            } 
-          
-        }, [isReady])
-      );
+        if(!randomUser.current){
+            fetchUsersData()    
+        } 
+        
+    },[]) 
 
 
     const  fetchUsersData = async ()=>{
@@ -51,66 +38,58 @@ const Login = ({navigation}) => {
             users =  users.filter(user => user.id !== randomUser.current.id)
 
             dispatch({type:'SET_USERS' ,payload:{users:users}}) 
+
             
-            setIsReady(true)
+        
+            setLoading(false)
+            
         }catch(err){
            
             console.log(err.message)
 
         }
-        // Socket is initialized after random user is selected
+        
+    };
+
+
+    function onPress(){
+
+        // Socket is initialized after user is login
         socket.on("connect",()=>{
             console.log("client connect")
+
+            // notify, user is active 
+            socket.emit("online",randomUser.current.id) 
+        }) 
+
+        //listen active user
+        socket.on("user_active", userId=>{
+            console.log("bir kullanici giriş yapti",userId)
+            // change active user online prop true
+            dispatch({type:'UPDATE_USERS_ITEM_ONLINE' ,payload:{userId :userId,online:true}}) 
             
-        })  
-        
-    };
+        })
 
-    const  fetchPrivateConv = async (randomUser)=>{
-        try{
-            // get private conv from server
-            const {data} =  await axios.get(`http://192.168.1.106:3000/conversations/private?userId=${randomUser.current.id}`)
-            
-            // add private conv and participant to redux
-            dispatch({type:'SET_PRIVATE_ROOMS' ,payload:{privateRooms:data.rooms}})
-            dispatch({type:'SET_PRIVATE_PARTICIPANTS' ,payload:{privateParticipants:data.participant}}) 
+        // listen deactive user
+        socket.on("user_disconnect",userId=>{
+            console.log("bir kullanici çikiş yapti",userId)
+            // set active user online prop false
+            dispatch({type:'UPDATE_USERS_ITEM_ONLINE' ,payload:{userId:userId, online:false}}) 
 
-            setLoading(false)
-
-        }catch(err){
-          
-            console.log(err.message)
-        }
-        
-    };
-
-    const  fetchCommunityConv = async (randomUser)=>{
-        try{
-            // get community conv from server
-            const {data} =  await axios.get(`http://192.168.1.106:3000/conversations/community?userId=${randomUser.current.id}`)
-
-            // add private conv and participant to redux
-            dispatch({type:'SET_COMMUNITY_ROOMS' ,payload:{communityRooms:data}})
-            
-            setLoading1(false) 
-
-        }catch(err){
-          
-            console.log(err.message)
-        }
-        
-    };
+        }) 
+        navigation.navigate('TopTabs')
+    }
 
 
     return(
         <View style={{alignItems:'center',justifyContent:'center'}}>
             <Text style={{color:'black', fontWeight:'bold',margin:30}}>Selected User </Text>
-            { loading && loading1 ?
+            { loading  ?
                 <ActivityIndicator/> :
 
                 <Text style={{color:'black', fontWeight:'bold',margin:30,fontSize:25}}>{randomUser.current.username}</Text>
             }
-            <Button title ='Login' onPress={()=>{navigation.navigate('TopTabs')}}/>
+            <Button title ='Login' onPress={onPress}/>
 
         </View>
 

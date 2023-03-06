@@ -66,13 +66,14 @@ const Chat = ({route})=>{
             console.log(err)
         }
 
+        const isPublic = false // chatting is not private
+
         // join room after check room id
-        socket.emit("join_room_private", roomId.current,selfUser.id,userId,false, (back)=>{
+        socket.emit("join_room", roomId.current,selfUser.id,userId,isPublic,(back)=>{
             console.log(back)
         })
-
     }
-
+    
     // send message to server 
     function onSend(messages){
         const message= {

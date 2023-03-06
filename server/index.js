@@ -4,7 +4,6 @@ const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 
 
-const users = require('./src/utils/dummyUser');
 
 const usersRouter = require('./src/routes/users');
 const conversationRouter = require('./src/routes/conversations');
@@ -19,16 +18,15 @@ app.use('/users', usersRouter);
 app.use('/conversations', conversationRouter);
 
 const { privateConversations, communityConversations } = require('./src/utils/dummyConversation');
+const users = require('./src/utils/dummyUser');
+const { off } = require("process");
 
-let isPublic; // hold whether the messaging is private or public 
-
-// add message to server 
-function post(message,roomId){
+function post(message,roomId,checkPublic){
 
     const room = privateConversations[roomId] || communityConversations[roomId]; // Get community rooms by room id
 
     // if messaging is public, add sender user property to message
-    if(isPublic){
+    if(checkPublic){
         // find sender user in users
         const senderUser = users.find(user=> user.id === message.user._id)
 
@@ -37,8 +35,8 @@ function post(message,roomId){
     }
 
     room.messages.unshift(message);
-    console.log("privateConversations",privateConversations)
-    console.log("CommunityConversations",communityConversations[roomId])
+    //console.log("privateConversations",privateConversations)
+    //console.log("CommunityConversations",communityConversations[roomId])
     
 }
 
@@ -51,16 +49,12 @@ function checkRoomPrivate (roomId,selfUserId,receiveId){
              messages: [],
              roomId : roomId
          }
-         privateConversations[roomId] = romm_property;
-         
+         privateConversations[roomId] = romm_property;  
      }
-
 }
 
-function checkRoomPublic(roomId,roomName,selfUserId){
-
+function checkRoomPublic(roomId,selfUserId,roomName){
     const room = communityConversations[roomId]  // Get community rooms by room id
-
     // if dont have room create room 
     if (!room) {
         let  room_property =  { 
@@ -71,8 +65,7 @@ function checkRoomPublic(roomId,roomName,selfUserId){
              avatar:'https://ui-avatars.com/api/?name=' + roomName
              
          }
-         communityConversations[roomId] = room_property
-         
+         communityConversations[roomId] = room_property   
      }
      else{
         // if room exists, Check weather or not user is one of the participant of the room  
@@ -83,44 +76,66 @@ function checkRoomPublic(roomId,roomName,selfUserId){
             room.participants.push(selfUserId)
         }
      }
-    
-
 }
 
 io.on('connection', socket  => {
 
-    console.log('A user connected', socket.id)
+    let checkPublic; // hold whether the messaging is private or public 
+
+    socket.on("online",(userId)=>{
+
+        let foundIndex = users.findIndex(user=> user.id === userId) // find active user's index in users
+        users[foundIndex].socketId = socket.id //add socket id to active user
+        users[foundIndex].online = true;
+       
+        console.log('connect',users[foundIndex])
+
+        socket.broadcast.emit("user_active",userId)// Notify other users that  user is active
+       
+    })
+
+
     
     //listen  messages
     socket.on("send_message",(message,roomId) =>{
+        // send the received message to the sockets in the room 
         socket.broadcast.to(roomId).emit("receive_message",message)
-        post(message,roomId)
+        post(message,roomId,checkPublic) // add message to server
            
     })
  
-
-    socket.on("join_room_private",(room,selfUserId,receiveId,isPublic,cb)=>{
-        isPublic = isPublic
-        checkRoomPrivate(room,selfUserId,receiveId)
-        socket.join(room)
+    // public chat param3 = roomName
+    // private chat param3= receiveId
+    socket.on("join_room",(room,selfUserId,param3,isPublic,cb)=>{
+        checkPublic = isPublic
+        if(isPublic){
+            checkRoomPublic(room,selfUserId,param3) // if chat is public check public rooms
+        }
+        else{
+            checkRoomPrivate(room,selfUserId,param3) // if chat is private check private rooms
+        }
+        socket.join(room)// If everything goes well join user to room
         cb("joined",room)
-    })
-
-        
-    socket.on("join_room_public",(roomId, roomName, selfUserId,cb)=>{
-        checkRoomPublic(roomId,roomName, selfUserId)
-        socket.join(roomId)
-        cb("joined",roomId)
     })
 
 
 
     socket.on('disconnect',()=>{
-        console.log("user disconnect",socket.id)
+
+        // If user disconnects, find user's index in users by socket id
+        let foundIndex = users.findIndex(user=> user.socketId === socket.id);
+
+        //delete user's socket id and set online false
+        users[foundIndex] = {...users[foundIndex], online:false}
+        delete users[foundIndex].socketId
+    
+        console.log('disconnect',users[foundIndex])
+
+        // notify other users that user left
+        socket.broadcast.emit("user_disconnect",users[foundIndex].id) 
+           
     })
             
-        
-
 
 })
 

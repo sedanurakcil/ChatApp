@@ -17,6 +17,20 @@ function reducers(state,action){
             const{users}= action.payload;
                 return {...state, users:users}
 
+            
+        case "UPDATE_USERS_ITEM_ONLINE":
+            const {userId,online} = action.payload;
+            let foundIndex = state.users.findIndex(user => user.id === userId)
+            let users_update = [...state.users];
+            
+            users_update[foundIndex]= {...users_update[foundIndex], online:online}
+           
+                return {...state, users:users_update}
+        
+
+
+
+
         case "SET_PRIVATE_ROOMS":
             const{privateRooms}= action.payload;
                  return {...state, privateRooms:privateRooms}

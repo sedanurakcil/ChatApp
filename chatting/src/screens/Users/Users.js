@@ -8,7 +8,7 @@ const Users = ({navigation})=>{
     const users = useSelector(s=>s.users)
     const selfUser = useSelector(s=>s.selfUser)
 
-    // TODO write the onPress Method
+
     function renderUser ({item}){
         return(
            <UserCard item = {item} onPress= {()=>{navigation.navigate('Chat',{userName:item.username,userId :item.id,avatar:item.avatar})}}/>

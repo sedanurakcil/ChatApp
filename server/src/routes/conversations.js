@@ -10,10 +10,11 @@ router.get('/private', (request, response) => {
 
     const userRooms = rooms.filter(room => room.participants.find(userIds => userIds === parseInt(userId))); // Filter user rooms by userId
     
-    // return participant of rooms
-    const participant = userRooms.map(room => room.participants).flat().filter(id => id != userId)
+    //filter participant of rooms and last message 
+    const participantsMessage = userRooms.map(room => [room.participants.find(id => id != userId),room.messages[0]])
 
-    response.json({rooms:userRooms, participant:participant}); // Return private user rooms and participants
+
+    response.json({rooms:userRooms, participantsMessage:participantsMessage}); // Return private user rooms and participants
 });
 
 router.get('/community', (request, response) => {

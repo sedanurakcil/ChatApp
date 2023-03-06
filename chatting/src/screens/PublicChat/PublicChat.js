@@ -76,14 +76,18 @@ const PublicChat = ({route})=>{
         }catch(err){
             console.log(err.message)
         } 
+
+        const isPublic= true
         
-        socket.emit("join_room_public", roomId.current,roomName, selfUser.id,(back)=>{
+        socket.emit("join_room", roomId.current,selfUser.id,roomName, isPublic,(back)=>{
             console.log(back)
         })
 
     }
-   
 
+
+    
+   
     // send message to server 
     function onSend(messages){
 

@@ -59,8 +59,7 @@ const Community = ({navigation})=>{
                             onChangeText={(name)=>setRoomName(name.toUpperCase())}
                             placeholder="Enter room name"
                             value={roomName}
-                            
-                        />
+                    />
                     
                     <Button onPress={onPressJoin}>
                         <ButtonText>JOIN OR CREATE ROOM</ButtonText>
