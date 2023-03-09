@@ -1,70 +1,39 @@
-import React,{useEffect, useState,useRef} from 'react'
-import {View,TextInput,Text,Button, ActivityIndicator} from 'react-native'
-import axios from 'axios'
+import React,{useEffect,useState} from 'react'
+import {View,Text,Button, ActivityIndicator} from 'react-native'
 import { useDispatch,useSelector } from 'react-redux'
-import { useFocusEffect } from '@react-navigation/native';
-import {socket} from '../../utils/socket'
+import {socket,connect}  from '../../utils/socket'
+import { fetchUsers,fetchPrivateConv} from '../../context/actions'
 
 const Login = ({navigation}) => {
 
     const dispatch = useDispatch()
-    const randomUser = useRef(null)
-    const [loading, setLoading] = useState(true)
     const selfUser = useSelector(state=>state.selfUser)
+    const [loading,setLoading] = useState(true)
  
     
     useEffect(()=>{
-
-        if(!randomUser.current){
-            fetchUsersData()    
-        } 
-        
+        // fetch users and add redux structure
+        dispatch(fetchUsers())
     },[]) 
+    
 
-
-    const  fetchUsersData = async ()=>{
-        try{
-            // get users from server
-            const {data} =  await axios.get('http://192.168.1.106:3000/users')
-            let users = data
-
-            //select random user
-            randomUser.current = users[Math.floor(Math.random() * users.length)];
-            
-            // add self user and users to redux structure
-            dispatch({type:'SET_SELF_USER' ,payload:{selfUser :randomUser.current} }) 
-            
-            // filter users by selected user 
-            users =  users.filter(user => user.id !== randomUser.current.id)
-
-            dispatch({type:'SET_USERS' ,payload:{users:users}}) 
-
-            
-        
+    useEffect(()=>{
+        // fetch private conversation and add redux structure
+        if(selfUser){
+            dispatch(fetchPrivateConv(selfUser.id))
             setLoading(false)
-            
-        }catch(err){
-           
-            console.log(err.message)
+        }
+    },[selfUser])
 
+    
+    function onPress(){
+        // Socket is initialized after user is login and notify user is active 
+        if(selfUser){
+            connect(selfUser.id)
         }
         
-    };
-
-
-    function onPress(){
-
-        // Socket is initialized after user is login
-        socket.on("connect",()=>{
-            console.log("client connect")
-
-            // notify, user is active 
-            socket.emit("online",randomUser.current.id) 
-        }) 
-
         //listen active user
         socket.on("user_active", userId=>{
-            console.log("bir kullanici giriş yapti",userId)
             // change active user online prop true
             dispatch({type:'UPDATE_USERS_ITEM_ONLINE' ,payload:{userId :userId,online:true}}) 
             
@@ -72,11 +41,11 @@ const Login = ({navigation}) => {
 
         // listen deactive user
         socket.on("user_disconnect",userId=>{
-            console.log("bir kullanici çikiş yapti",userId)
             // set active user online prop false
             dispatch({type:'UPDATE_USERS_ITEM_ONLINE' ,payload:{userId:userId, online:false}}) 
 
         }) 
+
         navigation.navigate('TopTabs')
     }
 
@@ -85,9 +54,10 @@ const Login = ({navigation}) => {
         <View style={{alignItems:'center',justifyContent:'center'}}>
             <Text style={{color:'black', fontWeight:'bold',margin:30}}>Selected User </Text>
             { loading  ?
-                <ActivityIndicator/> :
+                <ActivityIndicator/>
+                :
 
-                <Text style={{color:'black', fontWeight:'bold',margin:30,fontSize:25}}>{randomUser.current.username}</Text>
+                 <Text style={{color:'black', fontWeight:'bold',margin:30,fontSize:25}}>{selfUser.username}</Text>
             }
             <Button title ='Login' onPress={onPress}/>
 

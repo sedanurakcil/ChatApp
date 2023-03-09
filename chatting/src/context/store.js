@@ -2,6 +2,7 @@ export default {
     selfUser: null,
     users:null,
     privateRooms:null,
-    privateParticipants:null,
-    communityRooms:null
+    communityRooms:null,
+    isLoading:0,
+    message:'',
   };

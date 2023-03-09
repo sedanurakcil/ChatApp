@@ -3,14 +3,10 @@ const app = require('express')();
 const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 
-
-
 const usersRouter = require('./src/routes/users');
 const conversationRouter = require('./src/routes/conversations');
 
 app.use(bodyParser.json({}));
-
-
 
 const PORT = 3000 || 3001;
 
@@ -19,7 +15,6 @@ app.use('/conversations', conversationRouter);
 
 const { privateConversations, communityConversations } = require('./src/utils/dummyConversation');
 const users = require('./src/utils/dummyUser');
-const { off } = require("process");
 
 function post(message,roomId,checkPublic){
 
@@ -33,11 +28,7 @@ function post(message,roomId,checkPublic){
         message.user.avatar = senderUser.avatar
         message.user.name = senderUser.username
     }
-
-    room.messages.unshift(message);
-    //console.log("privateConversations",privateConversations)
-    //console.log("CommunityConversations",communityConversations[roomId])
-    
+    room.messages.unshift(message); 
 }
 
 function checkRoomPrivate (roomId,selfUserId,receiveId){
@@ -78,23 +69,29 @@ function checkRoomPublic(roomId,selfUserId,roomName){
      }
 }
 
+//update online property when user connect 
+function updateUserOnline(userId,socket){
+
+    let foundIndex = users.findIndex(user=> user.id == userId) // find active user's index in users
+    if(foundIndex != -1){
+        users[foundIndex].socketId =socket.id//add socket id to active user
+        users[foundIndex].online = true;
+    }
+    console.log('active',users[foundIndex])
+        
+ }
+    
+
+
 io.on('connection', socket  => {
 
-    let checkPublic; // hold whether the messaging is private or public 
-
-    socket.on("online",(userId)=>{
-
-        let foundIndex = users.findIndex(user=> user.id === userId) // find active user's index in users
-        users[foundIndex].socketId = socket.id //add socket id to active user
-        users[foundIndex].online = true;
-       
-        console.log('connect',users[foundIndex])
-
+    const userId = socket.handshake.query.userId;
+    if(userId){
+        updateUserOnline(userId,socket) 
         socket.broadcast.emit("user_active",userId)// Notify other users that  user is active
-       
-    })
-
-
+    }
+    
+    let checkPublic; // hold whether the messaging is private or public 
     
     //listen  messages
     socket.on("send_message",(message,roomId) =>{
@@ -121,18 +118,17 @@ io.on('connection', socket  => {
 
 
     socket.on('disconnect',()=>{
-
-        // If user disconnects, find user's index in users by socket id
+        //  If user disconnects, find user's index in users by socket id
         let foundIndex = users.findIndex(user=> user.socketId === socket.id);
 
-        //delete user's socket id and set online false
-        users[foundIndex] = {...users[foundIndex], online:false}
-        delete users[foundIndex].socketId
-    
-        console.log('disconnect',users[foundIndex])
+        if(foundIndex != -1){
+            //delete user's socket id and set online false
+            users[foundIndex].online = false 
+            users[foundIndex].socketId = null
+            socket.broadcast.emit("user_disconnect",users[foundIndex].id)// notify other users that user left
 
-        // notify other users that user left
-        socket.broadcast.emit("user_disconnect",users[foundIndex].id) 
+        }  
+        console.log('deactive',users[foundIndex])  
            
     })
             
@@ -140,4 +136,4 @@ io.on('connection', socket  => {
 })
 
 
-http.listen(PORT, () => console.log(`Socket app has been initiated on http://localhost:${PORT}/`));
+http.listen(PORT,() => console.log(`Socket app has been initiated on http://localhost:${PORT}/`));

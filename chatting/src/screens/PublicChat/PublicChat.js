@@ -1,7 +1,7 @@
 import {View,} from "react-native";
 import React,{useRef,useEffect,useState} from 'react'
 import { GiftedChat,InputToolbar ,Send} from 'react-native-gifted-chat'
-import {socket} from '../../utils/socket'
+import  {socket} from '../../utils/socket'
 import { useSelector} from "react-redux";
 import axios from 'axios'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';

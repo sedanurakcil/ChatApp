@@ -22,7 +22,6 @@ const Users = ({navigation})=>{
                 data = {users}
                 renderItem = {renderUser}
                 keyExtractor= {(item)=> item.id}/>
-
             <Text style={{margin :20,color:'black',fontWeight:'bold'}}>{selfUser.username}</Text>
 
         </View>
